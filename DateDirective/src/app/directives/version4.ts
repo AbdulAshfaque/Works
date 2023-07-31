@@ -27,10 +27,10 @@ import { Directive, ElementRef, OnInit, Renderer2, Input, HostListener, OnChange
 import { NgModel } from '@angular/forms';
 
 @Directive({
-    selector: '[appDateValidation]',
+    selector: '[appDateValidator]',
     providers: [NgModel], // Provide the NgModel for data binding
 })
-export class DateValidationDirective implements OnInit, OnChanges {
+export class DateValidatorDirective implements OnInit, OnChanges {
 
     /**
      * Date Format
@@ -239,8 +239,8 @@ export class DateValidationDirective implements OnInit, OnChanges {
         };
 
         const secondProcess = () => {
-            return this.dateFormat === 'mm/dd/yyyy' ? this.validateDayIfAfterMonth(value, monthDateDivider, dateYearDivider) :
-                this.validateMonthIfAfterDay(value, monthDateDivider, dateYearDivider);
+            return this.dateFormat === 'mm/dd/yyyy' ? this.validateDayIfAfterMonth(value, dateYearDivider) :
+                this.validateMonthIfAfterDay(value, dateYearDivider);
         };
 
         value = firstProcess();
@@ -306,7 +306,8 @@ export class DateValidationDirective implements OnInit, OnChanges {
      * @param dateYearDivider The position of the slash (/) that separates the month and year parts (if available).
      * @returns The updated input value with the validated month (without leading zeros) and the rest of the date.
      */
-    validateMonthIfAfterDay(value: string, monthDateDivider: number, dateYearDivider: number) {
+    validateMonthIfAfterDay(value: string, dateYearDivider: number) {
+        const monthDateDivider = this.findSlashPosition(value, 1);
         const limit: number = monthDateDivider + 1;
         const monthStartIndex: number = this.day.length + 1;
         const valueBeforeMonthDateDivider: string = value.slice(0, limit);
@@ -393,14 +394,13 @@ export class DateValidationDirective implements OnInit, OnChanges {
      * @param dateYearDivider The position of the slash (/) that separates the day and year parts (if available).
      * @returns The updated input value with the validated day (without leading zeros) and the rest of the date.
      */
-    validateDayIfAfterMonth(value: string, monthDateDivider: number, dateYearDivider: number) {
+    validateDayIfAfterMonth(value: string, dateYearDivider: number) {
+        const monthDateDivider = this.findSlashPosition(value, 1);
         const limit: number = monthDateDivider + 1;
         const totalDays: number = this.getNoOfDays();
         const dayStartIndex: number = this.month.length + 1;
         const valueBeforeMonthDateDivider: string = value.slice(0, limit);
-        const day: string = !dateYearDivider ?
-            value.slice(limit) :
-            value.slice(limit, dateYearDivider);
+        const day: string = !dateYearDivider ? value.slice(limit) : value.slice(limit, dateYearDivider);
 
         // If the month is '0', return the input value before the monthDateDivider.
         if (this.month === '0') {
@@ -422,7 +422,7 @@ export class DateValidationDirective implements OnInit, OnChanges {
         this.day = this.removeLeadingZero(day, 'day');
 
         // Return the updated input value with the correct day part.
-        return value.slice(0, dayStartIndex) + this.day + value.slice(dayStartIndex + day?.length);
+        return value.slice(0, dayStartIndex) + day + value.slice(dayStartIndex + day?.length);
     }
 
     /**
@@ -613,14 +613,9 @@ export class DateValidationDirective implements OnInit, OnChanges {
      * @returns The number of days in the specified month or the current month.
      */
     getNoOfDays(month: string = this.month): number {
-        const februaryDays = 29; // Number of days in February, including leap years.
-        const thirtyDaysMonths = [4, 6, 9, 11]; // Months with 30 days: April, June, September, November.
-        const thirtyOneDaysMonths = [1, 3, 5, 7, 8, 10, 12]; // Months with 31 days: January, March, May, July, August, October, December.
-
-        // // If the 'month' parameter is not provided, return the number of days in the current month (this.month).
-        // if (!month) {
-        //     return 31; // Default to 31 days for convenience.
-        // }
+        const februaryDays = 29;                               // Number of days in February, including leap years.
+        const thirtyDaysMonths = [4, 6, 9, 11];                // Months with 30 days: April, June, September, November.
+        const thirtyOneDaysMonths = [1, 3, 5, 7, 8, 10, 12];   // Months with 31 days: January, March, May, July, August, October, December.
 
         // Determine the number of days based on the month.
         if (Number(month) === 2) {
@@ -687,6 +682,5 @@ export class DateValidationDirective implements OnInit, OnChanges {
             this.errorDiv = null;
         }
     }
-
 
 }

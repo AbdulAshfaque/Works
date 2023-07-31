@@ -7,14 +7,14 @@ import { DateComponent } from './date/date.component';
 import { FormsModule } from '@angular/forms';
 // import { DateValidationDirective } from './directives/date-validation.directive copy';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { DateValidationDirective } from './directives/version4';
+import { DateValidatorDirective } from './directives/version4';
 // import {MatTooltipModule} from '@angular/material/tooltip';
 
 @NgModule({
   declarations: [
     AppComponent,
     DateComponent,
-    DateValidationDirective
+    DateValidatorDirective
   ],
   imports: [
     BrowserModule,
