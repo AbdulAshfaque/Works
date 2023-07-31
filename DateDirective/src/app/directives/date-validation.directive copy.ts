@@ -4,33 +4,37 @@
  * This directive provides date validation for input fields with the date format 'mm/dd/yyyy' or 'dd/mm/yyyy'.
  * It restricts input to valid dates and enforces a range of valid years from 1000 to 9999.
  * The directive also supports automatic formatting of the date as the user types.
- * 
+ * If an invalid date is entered, an error message will be displayed on the screen.
+ *
  * Usage:
  *   1. Import the DateValidationDirective in the parent module where it will be used.
  *   2. Add the 'appDateValidation' attribute to the input field that requires date validation.
- * 
+ *
  * Optional Inputs (can be passed as attributes on the directive):
  *   - dateFormat: Specify the date format ('mm/dd/yyyy' or 'dd/mm/yyyy'). The default format is 'mm/dd/yyyy'.
  *   - startYear: Set the start year for the valid range (e.g., 1000). The default start year is 1000.
  *   - endYear: Set the end year for the valid range (e.g., 9999). The default end year is 9999.
- * 
+ *   - isShowError: Set to false to disable the error message display. The default value is 'true'.
+ *
  * Example:
- *   <input type="text" appDateValidation [dateFormat]="'dd/mm/yyyy'" [startYear]="2000" [endYear]="2030">
- * 
+ *   <input type="text" appDateValidation [dateFormat]="'dd/mm/yyyy'" [startYear]="2000" [endYear]="2030" [isShowError]="false">
+ *
  * Note:
  * This directive depends on the NgModel module, so ensure you have 'FormsModule' imported in your parent module.
- * 
+ *
  * Author: Abdul Ashfaque M
  */
 
-import { Directive, ElementRef, OnInit, Renderer2, Input, HostListener } from '@angular/core';
+
+
+import { Directive, ElementRef, OnInit, Renderer2, Input, HostListener, OnChanges, SimpleChanges } from '@angular/core';
 import { NgModel } from '@angular/forms';
 
 @Directive({
-    selector: '[appDateValidation]',
+    selector: '[appDateValidator]',
     providers: [NgModel], // Provide the NgModel for data binding
 })
-export class DateValidationDirective implements OnInit {
+export class DateValidatorDirective implements OnInit, OnChanges {
 
     /**
      * Date Format
@@ -57,34 +61,69 @@ export class DateValidationDirective implements OnInit {
     @Input() endYear = 9999;
 
     /**
+     * Flag to control the display of error messages.
+     *
+     * Purpose: This property is an input variable that controls whether error messages related to invalid
+     * dates should be displayed or not. When set to 'true', the 'showErrorMessage' function will create
+     * and display the error message element. When set to 'false', no error message will be displayed even
+     * if an invalid date is encountered. The default value is 'true', which means error messages are shown
+     * by default. It can be set to 'false' to disable the error message display based on specific requirements.
+     */
+    @Input() isShowError = true;
+
+    /**
      * Reference to the HTML element associated with the directive (input field).
-     * 
+     *
+     * Purpose: This private property holds a reference to the HTML element (input field) to which the
+     * date validation directive is applied. It is used to interact with the input element in the directive's
+     * logic, such as getting the input value or manipulating the DOM. The property is initialized in the
+     * constructor using the 'ElementRef' and is of type 'HTMLElement'.
      */
     private el: HTMLElement;
 
     /**
+     * The error message element to display error messages for invalid dates.
+     *
+     * Purpose: This property holds a reference to the HTMLDivElement representing the error message
+     * element that will be used to display error messages related to invalid dates. The error message
+     * element is created and removed dynamically in the 'showErrorMessage' and 'removeErrorMessage'
+     * functions, respectively. It is initialized as null until needed, and will be added to the DOM when
+     * an invalid date is encountered and 'isShowError' is set to true.
+     */
+    private errorDiv: HTMLDivElement | null = null;
+
+    /**
      * Variable to store the day part of the date.
-     * 
+     *
      */
     day = '';
     /**
      * Variable to store the month part of the date.
-     * 
+     *
      */
     month = '';
 
     /**
      * Variable to store the year part of the date.
-     * 
+     *
      */
     year = '';
 
     /**
      * Variable to store the complete formatted date (in the format 'mm/dd/yyyy' or 'dd/mm/yyyy')
-     * 
+     *
      */
     date = '';
-    
+
+    /**
+     * The error message to be displayed for an invalid date.
+     *
+     * Purpose: This property holds the error message to be displayed when an invalid date is encountered.
+     * The 'showErrorMessage' function uses this message to populate the 'errorDiv' element. If this property
+     * is not provided or set to an empty string, a default error message of 'Invalid date' will be displayed.
+     */
+    dateErrorMessage = '';
+
     // Listen to the 'input' event on the input field and update the date accordingly
     @HostListener('input', ['$event.target.value'])
     onInput(value: any): void {
@@ -95,7 +134,7 @@ export class DateValidationDirective implements OnInit {
     @HostListener('focus', ['$event.target.value'])
     onFocus(value: any): void {
         this.updateDate(value);
-        this.clearDateIfNotValid();
+        // this.clearDateIfNotValid();
     }
 
     // Listen to the 'blur' event on the input field and clear the date if it's not valid
@@ -105,12 +144,23 @@ export class DateValidationDirective implements OnInit {
         this.clearDateIfNotValid();
     }
 
-    constructor(private _element: ElementRef, private _renderer: Renderer2, private _ngModel: NgModel) {
+    constructor(private _element: ElementRef<HTMLInputElement>, private _renderer: Renderer2, private _ngModel: NgModel) {
         this.el = this._element.nativeElement;
         this.el.style.paddingLeft = '10px';                 // Apply some styles to the input field
-        this.el.style.fontSize = '1rem';
+        this.el.style.fontSize = '14px';
     }
 
+    /**
+     * Lifecycle hook called after component initialization.
+     *
+     * Purpose: This lifecycle hook is called after the component has been initialized and the input properties
+     * are set. In this function, the component subscribes to value changes in the NgModel (if available) and
+     * updates the displayed date accordingly. If the NgModel has a value, the 'updateDate' function is called
+     * to set and display the date based on the restricted input value. The 'placeholder' attribute of the input
+     * element is also set to the 'dateFormat' property value. Additionally, if the 'errorDiv' element is not yet
+     * created, this function initializes it as an HTMLDivElement. This function is used to set up the component
+     * and prepare it for handling date input changes and validation.
+     */
     ngOnInit(): void {
         // Subscribe to value changes in the NgModel, if available
         if (this._ngModel?.valueChanges) {
@@ -119,12 +169,24 @@ export class DateValidationDirective implements OnInit {
                     this.updateDate(value);
                 }
             });
+
             // Clear the date if it's not valid after a short delay (500 milliseconds)
-            setTimeout(() => {
-                this.clearDateIfNotValid();
-            }, 500)
+            // setTimeout(() => {
+            //     this.clearDateIfNotValid();
+            // }, 500);
         }
+
+        // Set the 'placeholder' attribute of the input element to the 'dateFormat' property value.
         this._renderer.setProperty(this.el, 'placeholder', this.dateFormat);
+
+        // Initialize 'errorDiv' if it's not already created.
+        if (!this.errorDiv) {
+            this.errorDiv = this._renderer.createElement('div');
+        }
+    }
+
+
+    ngOnChanges(changes: SimpleChanges): void {
     }
 
     /**
@@ -138,6 +200,7 @@ export class DateValidationDirective implements OnInit {
      * @param value The date value entered by the user in the input element.
      */
     updateDate(value: string): void {
+        this.removeErrorMessage();
         this._renderer.setProperty(this.el, 'value', this.restrictInput(value));
     }
 
@@ -158,6 +221,10 @@ export class DateValidationDirective implements OnInit {
         const monthDateDivider = this.findSlashPosition(value, 1);
         const DateYearDivider = this.findSlashPosition(value, 2);
 
+        if ((/[^0-9/]/.test(value))) {
+            this.dateErrorMessage = 'Please enter numbers 0 to 9 and the symbol "/".';
+            this.showErrorMessage();
+        }
         // Rearrange the input value based on the selected date format
         value = this.rearrangeBasedOnDateFormat(this.checkSlashPosition(value).replace(/[^0-9/]/g, ''), monthDateDivider, DateYearDivider);
 
@@ -185,7 +252,9 @@ export class DateValidationDirective implements OnInit {
      * @returns The updated input value with the correct number of slashes.
      */
     checkSlashPosition(value: string): string {
-        if (value[0] === '/') {
+        if (value.startsWith('/')) {
+            this.dateErrorMessage = 'Please start with digits.';
+            this.showErrorMessage();
             return '';
         } else if ((value.match(/\//g) || []).length > 2) {
             value = this.removeSlashAfterThirdOccurrence(value);
@@ -211,20 +280,20 @@ export class DateValidationDirective implements OnInit {
      * @returns The rearranged input value based on the selected date format.
      */
     rearrangeBasedOnDateFormat(value: string, monthDateDivider: number, dateYearDivider: number): string {
-        const firstProcess = (value: string, monthDateDivider: number) => {
+        const firstProcess = () => {
             return this.dateFormat === 'mm/dd/yyyy' ? this.validateMonthIfBeforeDay(value, monthDateDivider) :
-                                                    this.validateDayIfBeforeMonth(value, monthDateDivider);
+                this.validateDayIfBeforeMonth(value, monthDateDivider);
         };
 
-        const secondProcess = (value: string, monthDateDivider: number, dateYearDivider: number) => {
-            return this.dateFormat === 'mm/dd/yyyy' ? this.validateDayIfAfterMonth(value, monthDateDivider, dateYearDivider) :
-                                                    this.validateMonthIfAfterDay(value, monthDateDivider, dateYearDivider);
+        const secondProcess = () => {
+            return this.dateFormat === 'mm/dd/yyyy' ? this.validateDayIfAfterMonth(value, dateYearDivider) :
+                this.validateMonthIfAfterDay(value, dateYearDivider);
         };
 
-        value = firstProcess(value, monthDateDivider);
+        value = firstProcess();
 
         if (monthDateDivider) {
-            value = secondProcess(value, monthDateDivider, dateYearDivider);
+            value = secondProcess();
         }
 
         return value;
@@ -252,11 +321,13 @@ export class DateValidationDirective implements OnInit {
         // Check if the extracted month value is a valid month (1 to 12)
         if (Number(month) > 12) {
             // If the month is not valid, return the previously stored valid month value (this.month).
+            this.dateErrorMessage = 'Please enter a valid month.';
+            this.showErrorMessage();
             return this.month;
         }
 
         // Remove any leading zeros from the month value and update this.month
-        this.month = this.removeLeadingZero(month);
+        this.month = this.removeLeadingZero(month, 'month');
 
         // Return the updated month value concatenated with the rest of the input value.
         return this.month + value.slice(month.length);
@@ -282,30 +353,36 @@ export class DateValidationDirective implements OnInit {
      * @param dateYearDivider The position of the slash (/) that separates the month and year parts (if available).
      * @returns The updated input value with the validated month (without leading zeros) and the rest of the date.
      */
-    validateMonthIfAfterDay(value: string, monthDateDivider: number, dateYearDivider: number) {
+    validateMonthIfAfterDay(value: string, dateYearDivider: number) {
+        const monthDateDivider = this.findSlashPosition(value, 1);
         const limit: number = monthDateDivider + 1;
         const monthStartIndex: number = this.day.length + 1;
         const valueBeforeMonthDateDivider: string = value.slice(0, limit);
-        const month: string = !dateYearDivider ? 
-                            value.slice(limit) :
-                            value.slice(limit, dateYearDivider);
+        const month: string = !dateYearDivider ?
+            value.slice(limit) :
+            value.slice(limit, dateYearDivider);
 
         // If the day is '0', return the input value before the monthDateDivider.
-        if (this.day === '0') {
-            return value.slice(0, monthDateDivider);
-        }
         // If the month is empty, return the input value without the month part including monthDateDivider.
-        else if (month === '') {
-            return valueBeforeMonthDateDivider;
-        }
         // Check if the extracted month value is a valid month (1 to 12) and if the day is within the valid range for that month.
-        else if (Number(month) > 12 || Number(this.day) > this.getNoOfDays(month)) {
-            // If the month or day is not valid, return the previously stored valid month value (this.month) concatenated with the day part.
+        // If the month or day is not valid, return the previously stored valid month value (this.month) concatenated with the day part.
+
+        if (this.day === '0') {
+            this.dateErrorMessage = 'Please enter a valid day.';
+            this.showErrorMessage();
+            return value.slice(0, monthDateDivider);
+        }  else if (value[limit] && month === '') {
+            this.dateErrorMessage = 'Please enter a valid month.';
+            this.showErrorMessage();
+            return valueBeforeMonthDateDivider;
+        } else if (Number(month) > 12 || ((Number(this.day) > this.getNoOfDays(month)) && month !== '0')) {
+            this.dateErrorMessage = 'Please enter a valid month.';
+            this.showErrorMessage();
             return valueBeforeMonthDateDivider + this.month;
         }
 
         // Remove any leading zeros from the month value and update this.month
-        this.month = this.removeLeadingZero(month);
+        this.month = this.removeLeadingZero(month, 'month');
 
         // Return the updated input value with the correct month part.
         return value.slice(0, monthStartIndex) + this.month + value.slice(monthStartIndex + month?.length);
@@ -333,11 +410,13 @@ export class DateValidationDirective implements OnInit {
         // Check if the extracted day value is a valid day (1 to 31).
         if (Number(day) > 31) {
             // If the day is not valid, return the previously stored valid day value (this.day).
+            this.dateErrorMessage = 'Please enter a valid day.';
+            this.showErrorMessage();
             return this.day;
         }
 
         // Remove any leading zeros from the day value and update this.day
-        this.day = this.removeLeadingZero(day);
+        this.day = this.removeLeadingZero(day, 'day');
 
         // Return the updated day value concatenated with the rest of the input value.
         return this.day + value.slice(day.length);
@@ -362,34 +441,35 @@ export class DateValidationDirective implements OnInit {
      * @param dateYearDivider The position of the slash (/) that separates the day and year parts (if available).
      * @returns The updated input value with the validated day (without leading zeros) and the rest of the date.
      */
-    validateDayIfAfterMonth(value: string, monthDateDivider: number, dateYearDivider: number) {
+    validateDayIfAfterMonth(value: string, dateYearDivider: number) {
+        const monthDateDivider = this.findSlashPosition(value, 1);
         const limit: number = monthDateDivider + 1;
         const totalDays: number = this.getNoOfDays();
         const dayStartIndex: number = this.month.length + 1;
         const valueBeforeMonthDateDivider: string = value.slice(0, limit);
-        const day: string = !dateYearDivider ? 
-                            value.slice(limit) :
-                            value.slice(limit, dateYearDivider);
+        const day: string = !dateYearDivider ? value.slice(limit) : value.slice(limit, dateYearDivider);
 
         // If the month is '0', return the input value before the monthDateDivider.
         if (this.month === '0') {
+            this.dateErrorMessage = 'Please enter a valid month.';
+            this.showErrorMessage();
             return value.slice(0, monthDateDivider);
-        }
-        // If the day is empty, return the input value after removing value monthDateDivider.
-        else if (day === '') {
+        }  else if (value[limit] && day === '') {      // If the day is empty, return the input value after removing value monthDateDivider.
+            this.dateErrorMessage = 'Please enter a valid day.';
+            this.showErrorMessage();
             return valueBeforeMonthDateDivider;
-        }
-        // Check if the extracted day value is a valid day for the given month.
-        else if (Number(day) > totalDays) {
+        }  else if (Number(day) > totalDays) {            // Check if the extracted day value is a valid day for the given month.
             // If the day is not valid, return the previously stored valid day value (this.day) concatenated with the month part.
+            this.dateErrorMessage = 'Please enter a valid day.';
+            this.showErrorMessage();
             return valueBeforeMonthDateDivider + this.day;
         }
 
         // Remove any leading zeros from the day value and update this.day
-        this.day = this.removeLeadingZero(day);
+        this.day = this.removeLeadingZero(day, 'day');
 
         // Return the updated input value with the correct day part.
-        return value.slice(0, dayStartIndex) + this.day + value.slice(dayStartIndex + day?.length);
+        return value.slice(0, dayStartIndex) + day + value.slice(dayStartIndex + day?.length);
     }
 
     /**
@@ -415,6 +495,8 @@ export class DateValidationDirective implements OnInit {
 
         // If the day or month is '0', return the input value without the year part.
         if (this.day === '0' || this.month === '0') {
+            this.dateErrorMessage = 'Please enter a valid date.';
+            this.showErrorMessage();
             return value.slice(0, dateYearDivider);
         }
 
@@ -423,8 +505,10 @@ export class DateValidationDirective implements OnInit {
             const yearInNumber: number = Number(year);
 
             // Check for valid year format (no leading zeros) and year range.
-            if (year[0] === '0' || ((year.length >= 4) && (yearInNumber < this.startYear) || (yearInNumber > this.endYear))) {
+            if (year.startsWith('0') || ((year.length >= 4) && (yearInNumber < this.startYear) || (yearInNumber > this.endYear))) {
                 // If the year is not valid, return the previous value with the previously stored valid year (this.year).
+                this.dateErrorMessage = `Please enter an year between ${this.startYear} and ${this.endYear}.`;
+                this.showErrorMessage();
                 return previousValue;
             }
 
@@ -432,6 +516,8 @@ export class DateValidationDirective implements OnInit {
             if ((this.month === '2' || this.month === '02') && this.day === '29' && year.length === 4) {
                 if (!this.checkIsLeapYear(year)) {
                     // If the year is not a leap year, return the input value without the last character (i.e., the invalid day).
+                    this.dateErrorMessage = 'Please enter a valid leap year.';
+                    this.showErrorMessage();
                     return value.substring(0, value.length - 1);
                 }
             }
@@ -455,6 +541,8 @@ export class DateValidationDirective implements OnInit {
         if ((!this.day || !this.month || (Number(this.year) < this.startYear) || (Number(this.year) > this.endYear))) {
             // If the day, month, or year is not present or the year is not within the valid range, clear the displayed date.
             this._renderer.setProperty(this.el, 'value', '');
+            this.removeErrorMessage();
+            this.showErrorMessage();
         } else {
             // If the date is valid, format and set the 'date' property to 'day/month/year'.
             this.date = this.day + '/' + this.month + '/' + this.year;
@@ -481,7 +569,7 @@ export class DateValidationDirective implements OnInit {
             // If the date format is 'mm/dd/yyyy', clear the 'day' part if the 'monthDateDivider' is not present.
             this.day = !monthDateDivider ? '' : this.day;
         }
-        
+
         // Clear the 'year' part if the 'dateYearDivider' is not present.
         this.year = !dateYearDivider ? '' : this.year;
     }
@@ -529,7 +617,10 @@ export class DateValidationDirective implements OnInit {
     removeSlashAfterThirdOccurrence(value: string): string {
         // Find the position of the third slash (/) in the input value.
         const position: number = this.findSlashPosition(value, 3);
-
+        if (this.day && this.month && position) {
+            this.dateErrorMessage = 'Please enter a valid ' + ((this.day === '29' && this.month === '2') ? 'leap year.' : 'year.');
+            this.showErrorMessage();
+        }
         // If the third slash is found, remove the slash and any characters after it.
         return position > 0 ? value.substring(0, position) : value;
     }
@@ -569,19 +660,20 @@ export class DateValidationDirective implements OnInit {
      * @returns The number of days in the specified month or the current month.
      */
     getNoOfDays(month: string = this.month): number {
-        const februaryDays = 29; // Number of days in February, including leap years.
-        const thirtyDaysMonths = [4, 6, 9, 11]; // Months with 30 days: April, June, September, November.
-        const thirtyOneDaysMonths = [1, 3, 5, 7, 8, 10, 12]; // Months with 31 days: January, March, May, July, August, October, December.
-
-        // If the 'month' parameter is not provided, return the number of days in the current month (this.month).
-        if (!month) {
-            return 31; // Default to 31 days for convenience.
-        }
+        const februaryDays = 29;                               // Number of days in February, including leap years.
+        const thirtyDaysMonths = [4, 6, 9, 11];                // Months with 30 days: April, June, September, November.
+        const thirtyOneDaysMonths = [1, 3, 5, 7, 8, 10, 12];   // Months with 31 days: January, March, May, July, August, October, December.
 
         // Determine the number of days based on the month.
-        return thirtyOneDaysMonths.includes(Number(month)) ? 31 :
-            thirtyDaysMonths.includes(Number(month)) ? 30 :
-            februaryDays; // Return 29 days for February as a default value for convenience.
+        if (Number(month) === 2) {
+            return februaryDays;
+        } else if (thirtyOneDaysMonths.includes(Number(month))) {
+            return 31;
+        } else if (thirtyDaysMonths.includes(Number(month))) {
+            return 30;
+        }
+
+        return 31;
     }
 
     /**
@@ -596,7 +688,7 @@ export class DateValidationDirective implements OnInit {
      * @param input The input string containing the number to process.
      * @returns The input string with leading zeros removed, except for the number 0.
      */
-    removeLeadingZero(input: string): string {
+    removeLeadingZero(input: string, name: string = 'number'): string {
         // Check if the number is greater than 9 and remove any leading zeros if present.
         if (Number(input) > 9) {
             if (/^0+/.test(input)) {
@@ -604,8 +696,73 @@ export class DateValidationDirective implements OnInit {
             }
         }
 
+        // more than one zeros message
+        if (/^00+/.test(input)) {
+            this.dateErrorMessage = `please enter valid ${name}`;
+            this.showErrorMessage();
+        }
+
         // If the number is less than or equal to 9, ensure it has a leading zero if necessary.
         return input.replace(/^0+/, '0');
+    }
+
+    /**
+     * Show an error message indicating an invalid date if required.
+     *
+     * Purpose: This private function is responsible for displaying an error message indicating an invalid date
+     * if the 'isShowError' flag is set to true. It creates a new 'div' element to represent the error message,
+     * adds the appropriate CSS class to style it, and appends it to the container element (if available).
+     * The error message is retrieved from the 'dateErrorMessage' property, but if it's not provided, a default
+     * message of 'Invalid date' is used. The function sets a brief delay (600 milliseconds) before calling the
+     * 'removeErrorMessage' function to remove the error message from the UI automatically. The function also resets
+     * the 'dateErrorMessage' property to an empty string after displaying the error message. This function is typically
+     * used in date validations to provide visual feedback to users about invalid date inputs or date formatting issues.
+     *
+     * Note: This is a private function and is not intended for external use.
+     */
+    private showErrorMessage() {
+        if (this.isShowError) {
+            // Create a new 'div' element to represent the error message.
+            this.errorDiv = this._renderer.createElement('div');
+            this._renderer.addClass(this.errorDiv, 'error-message'); // Add CSS class to style the error message.
+
+            // Append the error message element to the container element (if available).
+            this._renderer.appendChild(this.el?.parentElement, this.errorDiv);
+
+            if (this.errorDiv) {
+                // Set the error message text to 'dateErrorMessage' or use the default message 'Invalid date'.
+                this.errorDiv.innerText = this.dateErrorMessage || 'Invalid date';
+
+                // Automatically remove the error message after 600 milliseconds using 'removeErrorMessage' function.
+                setTimeout(() => {
+                    this.removeErrorMessage();
+                }, 600);
+            }
+        }
+
+        // Reset the 'dateErrorMessage' property after displaying the error message.
+        this.dateErrorMessage = '';
+    }
+
+    /**
+     * Remove the displayed error message element from the container.
+     *
+     * Purpose: This private function is responsible for removing the displayed error message element
+     * from the container, if it exists. It checks if the 'errorDiv' property is defined, and if so, it uses
+     * the 'removeChild' function from the renderer to remove the error message element from its parent element.
+     * After removing the element, it sets the 'errorDiv' property to null. This function is typically used
+     * in conjunction with the 'showErrorMessage' function to remove the error message after a brief display period.
+     *
+     * Note: This is a private function and is not intended for external use.
+     */
+    private removeErrorMessage() {
+        if (this.errorDiv) {
+            // Check if 'errorDiv' is defined and remove the error message element from the container.
+            this._renderer.removeChild(this.el?.parentElement, this.errorDiv);
+
+            // Set 'errorDiv' to null after removing the error message element.
+            this.errorDiv = null;
+        }
     }
 
 }
