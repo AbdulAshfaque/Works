@@ -1,0 +1,42 @@
+.input-container {
+    position: relative;
+  }
+  
+/* Styles for the error message tooltip */
+.error-message {
+    /* Your existing styles for the error message */
+    position: absolute;
+    background-color: #333;
+    color: #fff;
+    right: 0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    pointer-events: none;
+    white-space: nowrap;
+    margin-top: 2px;
+    z-index: 1;
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; /* Add transition for both opacity and transform */
+
+    /* New styles for the tooltip arrow */
+    &:after {
+        content: '';
+        position: absolute;
+        top: 100%; /* Position the arrow at the bottom of the error message */
+        left: 50%; /* Center the arrow horizontally */
+        margin-left: -5px; /* Adjust to center the arrow on the error message */
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent transparent #333 transparent; /* The arrow will be black (#333) */
+        transform: translateY(0); /* Initially, the arrow is hidden */
+        opacity: 0; /* Initially, the arrow is hidden */
+        transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out; /* Add transition for both opacity and transform */
+        z-index: 2;
+    }
+}
+
+/* Show the tooltip arrow when the error message is visible */
+.error-message.active::after {
+    transform: translateY(-5px); /* Move the arrow above the error message */
+    opacity: 1;
+}

@@ -1,0 +1,11 @@
+<div class="date-validation-container">
+
+    <div class="input-container">
+        <input appDateValidation class="form-control" [(ngModel)]="date1" [dateFormat]="'dd/mm/yyyy'" autocomplete="off"/>
+    </div>
+
+    <div class="input-container mt-3">
+        <input appDateValidation type="text" [(ngModel)]="date2" [dateFormat]="'mm/dd/yyyy'" [isShowError]="false" class="form-control mt-4" />
+    </div>
+
+</div>

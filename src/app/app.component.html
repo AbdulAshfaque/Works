@@ -1,0 +1,9 @@
+<div class="date-validation-demo-container">
+    <h1 class="title">Date Validation Demo</h1>
+    <app-date [date1]="date1" [date2]="date2"></app-date>
+    <div class="mt-4">
+        <button class="test-button bg-primary me-2" (click)="date1 = '01/03/2025';">Valid Date</button>
+        <button class="test-button" (click)="date2 = '02/29/2001';">Error Date</button>
+    </div>
+    
+</div>
